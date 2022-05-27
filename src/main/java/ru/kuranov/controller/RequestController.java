@@ -17,7 +17,7 @@ import javax.script.ScriptException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
-import static ru.kuranov.error.Errors.ONLY_DIGITS_MINIMUM_ONE;
+import static ru.kuranov.error.Errors.*;
 import static ru.kuranov.service.Hint.DEFAULT_FUNCTION;
 
 @Controller
@@ -52,13 +52,13 @@ public class RequestController {
 
         // валидируем количество итераций
         if (!validator.isValidate(requestDto.getIteration())) {
-            model.addAttribute("errorIteration", ONLY_DIGITS_MINIMUM_ONE);
+            model.addAttribute("errorIteration", USE_ONLY_DIGITS_MINIMUM_ITERATION_ONE);
             return "page";
         }
 
         // валидируем период итераций
         if (!validator.isValidate(requestDto.getPeriod())) {
-            model.addAttribute("errorPeriod", ONLY_DIGITS_MINIMUM_ONE);
+            model.addAttribute("errorPeriod", USE_ONLY_DIGITS_AND_MINIMUM_PERIOD_ONE);
             return "page";
         }
 

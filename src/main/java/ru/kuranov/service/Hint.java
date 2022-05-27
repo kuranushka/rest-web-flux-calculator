@@ -6,7 +6,9 @@ import lombok.AllArgsConstructor;
 public enum Hint {
     DEFAULT_FUNCTION("function func(a) {\n" +
             "  return a + 10;\n" +
-            "}");
+            "}"),
+    DEFAULT_PERIOD("100"),
+    DEFAULT_ITERATION("25");
 
     private final String message;
 

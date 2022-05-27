@@ -18,7 +18,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 
 import static ru.kuranov.error.Errors.*;
-import static ru.kuranov.service.Hint.DEFAULT_FUNCTION;
+import static ru.kuranov.service.Hint.*;
 
 @Controller
 @RequiredArgsConstructor
@@ -35,7 +35,8 @@ public class RequestController {
         RequestDto requestDto = RequestDto.builder()
                 .functionA(DEFAULT_FUNCTION.toString())
                 .functionB(DEFAULT_FUNCTION.toString())
-                .period("100")
+                .period(DEFAULT_PERIOD.toString())
+                .iteration(DEFAULT_ITERATION.toString())
                 .build();
 
         model.addAttribute("requestDto", requestDto);

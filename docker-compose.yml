@@ -1,0 +1,12 @@
+version: '3.3'
+services:
+  web-rest:
+    container_name: web-rest
+    hostname: web-rest
+    image: web-rest
+    ports:
+      - 8111:8111
+    entrypoint: [ "java", "-jar", "rest-web-flux-calculator-0.0.1-SNAPSHOT.jar" ]
+    expose:
+      - 8111
+    restart: always

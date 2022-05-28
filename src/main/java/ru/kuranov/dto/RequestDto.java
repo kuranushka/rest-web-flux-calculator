@@ -15,6 +15,10 @@ public class RequestDto {
 
     private String functionB;
 
+    private String pauseA;
+
+    private String pauseB;
+
     private String period;
 
     private String iteration;

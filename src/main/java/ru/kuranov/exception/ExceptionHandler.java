@@ -26,6 +26,8 @@ public class ExceptionHandler implements HandlerExceptionResolver {
                 .functionB(request.getParameter("functionB"))
                 .iteration(request.getParameter("iteration"))
                 .period(request.getParameter("period"))
+                .pauseA(request.getParameter("pauseA"))
+                .pauseB(request.getParameter("pauseB"))
                 .build();
         map.put("requestDto", requestDto);
         return new ModelAndView("page", map);

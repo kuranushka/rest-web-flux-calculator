@@ -1,8 +1,6 @@
 package ru.kuranov.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,13 +16,12 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 
 import static ru.kuranov.error.Errors.*;
-import static ru.kuranov.service.Hint.*;
+import static ru.kuranov.value.DefaultValues.*;
 
 @Controller
 @RequiredArgsConstructor
 public class RequestController {
 
-    private static final Logger log = LoggerFactory.getLogger(RequestController.class);
     private final Calculator calculator;
     private final Validator validator;
 
@@ -37,6 +34,8 @@ public class RequestController {
                 .functionB(DEFAULT_FUNCTION.toString())
                 .period(DEFAULT_PERIOD.toString())
                 .iteration(DEFAULT_ITERATION.toString())
+                .pauseA(DEFAULT_PAUSE.toString())
+                .pauseB(DEFAULT_PAUSE.toString())
                 .build();
 
         model.addAttribute("requestDto", requestDto);
@@ -52,14 +51,26 @@ public class RequestController {
         calculator.calc(requestDto.getFunctionB(), 1);
 
         // валидируем количество итераций
-        if (!validator.isValidate(requestDto.getIteration())) {
+        if (!validator.isValid(requestDto.getIteration())) {
             model.addAttribute("errorIteration", USE_ONLY_DIGITS_MINIMUM_ITERATION_ONE);
             return "page";
         }
 
         // валидируем период итераций
-        if (!validator.isValidate(requestDto.getPeriod())) {
+        if (!validator.isValid(requestDto.getPeriod())) {
             model.addAttribute("errorPeriod", USE_ONLY_DIGITS_AND_MINIMUM_PERIOD_ONE);
+            return "page";
+        }
+
+        // валидируем паузу функции А
+        if (!validator.isValidPause(requestDto.getPauseA())) {
+            model.addAttribute("errorPauseA", USE_ONLY_DIGITS);
+            return "page";
+        }
+
+        // валидируем паузу функции B
+        if (!validator.isValidPause(requestDto.getPauseB())) {
+            model.addAttribute("errorPauseB", USE_ONLY_DIGITS);
             return "page";
         }
 
@@ -69,6 +80,8 @@ public class RequestController {
         redirectAttributes.addAttribute("iteration", requestDto.getIteration());
         redirectAttributes.addAttribute("isOrderedOut", isOrderedOut);
         redirectAttributes.addAttribute("period", requestDto.getPeriod());
+        redirectAttributes.addAttribute("pauseA", requestDto.getPauseA());
+        redirectAttributes.addAttribute("pauseB", requestDto.getPauseB());
         return "redirect:/calc";
     }
 }

@@ -23,13 +23,17 @@ import java.util.concurrent.atomic.AtomicReference;
 public class CalculatorController {
 
     private final Calculator calculator;
+    private final String DELIMITER = "\t";
+    private final String RETURN_CARR = "\n";
 
     @GetMapping(produces = MediaType.APPLICATION_STREAM_JSON_VALUE)
     public Flux<Object> streamDataFlux(@RequestParam String funcA,
                                        @RequestParam String funcB,
                                        @RequestParam int iteration,
                                        @RequestParam long period,
-                                       @RequestParam boolean isOrderedOut) throws InterruptedException, ExecutionException {
+                                       @RequestParam boolean isOrderedOut,
+                                       @RequestParam long pauseA,
+                                       @RequestParam long pauseB) {
 
         // переменные для подсчета количества итераций
         AtomicLong timesA = new AtomicLong(0L);
@@ -61,19 +65,14 @@ public class CalculatorController {
         Runnable taskA = () -> {
 
             // засекаем время начала расчета
-            startA.setRelease(System.nanoTime());
+            startA.setPlain(System.nanoTime());
 
+            // если не достигли предела итерации, то вычисляем функцию
             if (countA.get() < iteration) {
 
-//                try {
-//                    Thread.sleep(30L);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-
                 try {
-                    // вычисление функции
-                    calcA.setRelease(calculator.calc(funcA, (int) countA.get()));
+                    // вычисление функции А
+                    calcA.setPlain(calculator.calc(funcA, (int) countA.get()));
                 } catch (ScriptException | NoSuchMethodException | IOException | URISyntaxException e) {
                     e.printStackTrace();
                 }
@@ -83,11 +82,19 @@ public class CalculatorController {
             }
 
             // засекаем время окончания расчета
-            stopA.setRelease(System.nanoTime());
+            stopA.setPlain(System.nanoTime());
             timesA.getAndIncrement();
 
             // собираем и сохраняем результирующую строку
-            resultA.setRelease("<function-A>,<" + calcA.get() + ">,<" + (stopA.get() - startA.get()) + " ns>");
+            if (timesA.get() <= iteration) {
+                resultA.setPlain(String.format("<function-A>%s<%s>%s%s<%d>",
+                        DELIMITER, calcA.get(), DELIMITER, DELIMITER, (stopA.get() - startA.get())));
+            } else {
+
+                // если функция закончила свою работу
+                resultA.setPlain(String.format("<A-completed>%s<--->%s%s<------>",
+                        DELIMITER, DELIMITER, DELIMITER));
+            }
         };
 
 
@@ -95,18 +102,14 @@ public class CalculatorController {
         Runnable taskB = () -> {
 
             // засекаем время начала расчета
-            startB.setRelease(System.nanoTime());
+            startB.setPlain(System.nanoTime());
 
+            // если не достигли предела итерации, то вычисляем функцию
             if (countB.get() < iteration) {
 
-//                try {
-//                    Thread.sleep(80L);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-
                 try {
-                    calcB.setRelease(calculator.calc(funcB, (int) countB.get()));
+                    // вычисление функции B
+                    calcB.setPlain(calculator.calc(funcB, (int) countB.get()));
                 } catch (ScriptException | NoSuchMethodException | IOException | URISyntaxException e) {
                     e.printStackTrace();
                 }
@@ -116,45 +119,71 @@ public class CalculatorController {
             }
 
             // засекаем время окончания расчета
-            stopB.setRelease(System.nanoTime());
+            stopB.setPlain(System.nanoTime());
             timesB.getAndIncrement();
 
             // собираем и сохраняем результирующую строку
-            resultB.setRelease("<function-B>,<" + calcB.get() + ">,<" + (stopB.get() - startB.get()) + " ns>");
+            if (timesB.get() <= iteration) {
+                resultB.setPlain(String.format("<function-B>%s<%s>%s%s<%d>",
+                        DELIMITER, calcB.get(), DELIMITER, DELIMITER, (stopB.get() - startB.get())));
+            } else {
+
+                // если функция закончила свою работу
+                resultB.setPlain(String.format("<B-completed>%s<--->%s%s<------>",
+                        DELIMITER, DELIMITER, DELIMITER));
+            }
         };
 
-        // запуск ExecutorService с минимальными задержками
-        ScheduledFuture<?> scheduledFutureA = serviceA.scheduleAtFixedRate(taskA, 1, 1L, TimeUnit.NANOSECONDS);
-        ScheduledFuture<?> scheduledFutureB = serviceB.scheduleAtFixedRate(taskB, 1, 1L, TimeUnit.NANOSECONDS);
+        // запуск ExecutorService с минимальными задержками и регулируемыми паузами между перезапуском потоков (минимальная пауза между перезапуском потоков = 1)
+        ScheduledFuture<?> scheduledFutureA = serviceA.scheduleAtFixedRate(taskA, 1, pauseA > 0 ? pauseA : 1, TimeUnit.MILLISECONDS);
+        ScheduledFuture<?> scheduledFutureB = serviceB.scheduleAtFixedRate(taskB, 1, pauseB > 0 ? pauseB : 1, TimeUnit.MILLISECONDS);
 
         while (resultA.get().equals("") || resultB.get().equals("")) {
-            // ожидаем первые результаты расчетов функций
+            // ожидаем первые результаты расчетов функций в этом цикле
         }
 
+
         return Flux
-                .range(1, iteration)
+                .range(0, iteration)
                 .delaySequence(Duration.ofMillis(period))
                 .map(i -> {
 
                     // останавливаем поток А
                     if (countA.get() >= iteration) {
                         scheduledFutureA.cancel(true);
-                        serviceA.shutdown();
-                        countA.setRelease(0L);
+                        serviceA.shutdownNow();
                     }
 
                     // останавливаем поток В
                     if (countB.get() >= iteration) {
                         scheduledFutureB.cancel(true);
-                        serviceB.shutdown();
-                        countB.setRelease(0L);
+                        serviceB.shutdownNow();
                     }
 
-                    // выводим результат в звисимости от требований клиента
+
+                    // выводим первую строку с заголовками
+                    if (i == 0) {
+
+                        // для упорядоченного вывода
+                        if (isOrderedOut) {
+                            return String.format("<№>%s<функция>%s<результат>%s<время, ns>%s<рез. наперед>%s<функция>%s<результат>%s<время>%s%s<рез. наперед>",
+                                    DELIMITER, DELIMITER, DELIMITER, DELIMITER, DELIMITER, DELIMITER, DELIMITER, DELIMITER, DELIMITER);
+                        } else {
+
+                            //  для неупорядоченного вывода
+                            return String.format("<№>%s<функция>%s<результат>%s<время, ns>",
+                                    DELIMITER, DELIMITER, DELIMITER);
+                        }
+                    }
+
+
+                    // выводим результат в зависимости от требований клиента
                     if (isOrderedOut) {
-                        return "<" + i + ">," + resultA.get() + ",<" + timesA.get() + " times>,\t" + "<" + i + ">," + resultB.get() + ",<" + timesB.get() + " times>";
+                        return String.format("<%d>%s%s%s<%d>%s%s%s%s<%d>",
+                                i, DELIMITER, resultA.get(), DELIMITER, timesA.get(), DELIMITER, DELIMITER, resultB.get(), DELIMITER, timesB.get());
                     } else {
-                        return "<" + i + ">," + resultA.get() + "\n" + "<" + i + ">," + resultB.get();
+                        return String.format("<%d>%s%s%s<%d>%s%s",
+                                i, DELIMITER, resultA.get(), RETURN_CARR, i, DELIMITER, resultB.get());
                     }
                 });
     }

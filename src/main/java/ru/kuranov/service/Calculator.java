@@ -11,11 +11,14 @@ import javax.script.ScriptException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
+import static ru.kuranov.value.DefaultValues.DEFAULT_FUNCTION_NAME;
+
 @Service
 public class Calculator {
     private static final Logger log = LoggerFactory.getLogger(Calculator.class);
 
-    public String calc(String function, int x) throws ScriptException, NoSuchMethodException, IOException, URISyntaxException {
+    public String calc(String function, int x)
+            throws ScriptException, NoSuchMethodException, IOException, URISyntaxException {
 
         // запускаем движок
         ScriptEngineManager manager = new ScriptEngineManager();
@@ -25,7 +28,7 @@ public class Calculator {
         Invocable inv = (Invocable) engine;
 
         // выполняем вычисления
-        String result = String.valueOf(inv.invokeFunction("func", x));
+        String result = String.valueOf(inv.invokeFunction(DEFAULT_FUNCTION_NAME.toString(), x));
         log.info("RESULT FUNCTION {}", result);
         return result;
     }

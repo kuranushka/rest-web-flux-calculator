@@ -8,11 +8,17 @@ import java.util.regex.Pattern;
 @Service
 public class Validator {
 
-    public boolean isValidate(String data) {
+    public boolean isValid(String data) {
+        return isNumber(data) && Integer.parseInt(data) >= 1;
+    }
 
-        // валидируем числовые данные
+    public boolean isValidPause(String data) {
+        return isNumber(data);
+    }
+
+    private boolean isNumber(String data) {
         Pattern pattern = Pattern.compile("^\\d+$");
         Matcher matcher = pattern.matcher(String.valueOf(data));
-        return matcher.find() && Integer.parseInt(data) >= 1;
+        return matcher.find();
     }
 }
